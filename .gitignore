@@ -38,5 +38,4 @@ npm-debug.log*
 *.tsbuildinfo
 
 # Other
-README.md
 SECURITY.md
