@@ -1,0 +1,250 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  STUDENT
+  SUPERVISOR
+  REVIEWER
+  ADMIN
+}
+
+enum DocumentType {
+  THESIS
+  DISSERTATION
+  JOURNAL_ARTICLE
+  CONFERENCE_PAPER
+  TECHNICAL_REPORT
+  DATASET
+}
+
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+  SUPERVISOR_APPROVED
+  UNDER_REVIEW
+  CHANGES_REQUESTED
+  PUBLISHED
+  REJECTED
+}
+
+enum PlagiarismReportStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum ReviewAction {
+  ENDORSED
+  APPROVED
+  REQUESTED_CHANGES
+  REJECTED
+}
+
+enum StorageProviderType {
+  LOCAL
+  S3
+  CLOUDINARY
+}
+
+model Department {
+  id          String       @id @default(uuid())
+  name        String
+  code        String       @unique
+  faculty     String
+  users       User[]
+  submissions Submission[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model User {
+  id            String       @id @default(uuid())
+  email         String       @unique
+  passwordHash  String
+  firstName     String
+  lastName      String
+  role          UserRole     @default(STUDENT)
+  departmentId  String
+  department    Department   @relation(fields: [departmentId], references: [id])
+  isMfaEnabled  Boolean      @default(false)
+  mfaSecret     String?
+  lastLoginAt   DateTime?
+  refreshTokens RefreshToken[]
+  authoredSubmissions   Submission[] @relation("AuthorSubmissions")
+  supervisedSubmissions Submission[] @relation("SupervisorSubmissions")
+  reviews       ReviewLog[]
+  auditLogs     AuditLog[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([email])
+  @@index([departmentId])
+  @@index([role])
+}
+
+model RefreshToken {
+  id                 String   @id @default(uuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash          String   @unique
+  expiresAt          DateTime
+  isRevoked          Boolean  @default(false)
+  replacedByTokenId  String?
+  ipAddress          String?
+  userAgent          String?
+  createdAt          DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Submission {
+  id                 String           @id @default(uuid())
+  stableIdentifier   String           @unique
+  title              String
+  abstract           String           @db.Text
+  keywords           String[]
+  documentType       DocumentType
+  year               Int
+  degreeProgramme    String
+  status             SubmissionStatus @default(DRAFT)
+  versionNumber      Int              @default(1)
+  embargoReleaseDate DateTime?
+  authorId           String
+  author             User             @relation("AuthorSubmissions", fields: [authorId], references: [id])
+  supervisorId       String?
+  supervisor         User?            @relation("SupervisorSubmissions", fields: [supervisorId], references: [id])
+  departmentId       String
+  department         Department       @relation(fields: [departmentId], references: [id])
+  doi                String?          @unique
+  handleId           String?          @unique
+  versions           SubmissionVersion[]
+  reviewLogs         ReviewLog[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([status])
+  @@index([documentType])
+  @@index([departmentId])
+  @@index([authorId])
+  @@index([supervisorId])
+  @@index([year])
+}
+
+model SubmissionVersion {
+  id                 String          @id @default(uuid())
+  submissionId       String
+  submission         Submission      @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  versionNumber      Int
+  title              String
+  abstract           String          @db.Text
+  fullTextContent    String?         @db.Text
+  sha256Hash         String
+  file               SubmissionFile?
+  externalReport     ExternalPlagiarismReport?
+  internalReport     InternalSimilarityReport?
+  createdAt          DateTime        @default(now())
+
+  @@unique([submissionId, versionNumber])
+  @@index([submissionId])
+}
+
+model SubmissionFile {
+  id                  String             @id @default(uuid())
+  submissionVersionId String             @unique
+  submissionVersion   SubmissionVersion  @relation(fields: [submissionVersionId], references: [id], onDelete: Cascade)
+  storageKey          String
+  originalName        String
+  mimeType            String
+  magicBytesVerified  Boolean            @default(false)
+  sizeBytes           BigInt
+  sha256Checksum      String
+  isVirusesClean      Boolean            @default(true)
+  storageProvider     StorageProviderType @default(LOCAL)
+  createdAt           DateTime           @default(now())
+
+  @@index([submissionVersionId])
+  @@index([sha256Checksum])
+}
+
+model ExternalPlagiarismReport {
+  id                          String                 @id @default(uuid())
+  submissionVersionId        String                 @unique
+  submissionVersion          SubmissionVersion      @relation(fields: [submissionVersionId], references: [id], onDelete: Cascade)
+  provider                    String                 @default("TURNITIN")
+  externalJobId               String?
+  status                      PlagiarismReportStatus @default(PENDING)
+  overallSimilarityPercentage Float?
+  compareStudentPapers        Boolean                @default(true)
+  compareInstitutional        Boolean                @default(true)
+  compareInternet             Boolean                @default(true)
+  submitToRepo                Boolean                @default(true)
+  matchedSources              Json?
+  rawResponse                 Json?
+  errorMessage                String?
+  createdAt                   DateTime               @default(now())
+  completedAt                 DateTime?
+
+  @@index([submissionVersionId])
+  @@index([status])
+}
+
+model InternalSimilarityReport {
+  id                          String                 @id @default(uuid())
+  submissionVersionId        String                 @unique
+  submissionVersion          SubmissionVersion      @relation(fields: [submissionVersionId], references: [id], onDelete: Cascade)
+  status                      PlagiarismReportStatus @default(PENDING)
+  overallSimilarityPercentage Float?
+  topMatches                  Json?
+  errorMessage                String?
+  createdAt                   DateTime               @default(now())
+  completedAt                 DateTime?
+
+  @@index([submissionVersionId])
+  @@index([status])
+}
+
+model ReviewLog {
+  id           String       @id @default(uuid())
+  submissionId String
+  submission   Submission   @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  reviewerId   String
+  reviewer     User         @relation(fields: [reviewerId], references: [id])
+  action       ReviewAction
+  comments     String       @db.Text
+  createdAt    DateTime     @default(now())
+
+  @@index([submissionId])
+  @@index([reviewerId])
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  actorId      String?
+  actor        User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action       String
+  targetEntity String
+  targetId     String
+  metadata     Json?
+  ipAddress    String
+  userAgent    String
+  createdAt    DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([targetEntity, targetId])
+  @@index([createdAt])
+}
+
+model SystemConfig {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}

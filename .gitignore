@@ -1,0 +1,38 @@
+# Git ignore rules for FULafia Institutional Repository
+
+# Environment secrets — never commit
+.env
+.env.local
+.env.*.local
+
+# Node modules
+node_modules/
+
+
+# Build artifacts
+dist/
+apps/api/dist/
+apps/web/dist/
+packages/shared/dist/
+
+# Prisma generated client (regenerated from schema)
+apps/api/node_modules/.prisma/
+
+# Local file storage uploads (dev only)
+apps/api/uploads/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript incremental build cache
+*.tsbuildinfo
