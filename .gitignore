@@ -36,3 +36,7 @@ npm-debug.log*
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Other
+README.md
+SECURITY.md
