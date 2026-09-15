@@ -12,7 +12,7 @@ import {
   TurnitinScopeConfig,
 } from '@fulafia/shared';
 
-const API_BASE_URL = '/api/v1';
+const API_BASE_URL = `${(import.meta as ImportMeta & { env: Record<string, string> }).env.VITE_API_URL}/api/v1`;
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,

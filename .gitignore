@@ -4,6 +4,7 @@
 .env
 .env.local
 .env.*.local
+apps/api/.env
 
 # Node modules
 node_modules/

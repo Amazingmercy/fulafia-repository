@@ -6,7 +6,7 @@ The **FULafia Institutional Repository** is a secure, institutional-grade reposi
 
 ## Technical Stack
 
-- **Monorepo Architecture**: npm Workspaces (`apps/api`, `apps/web`, `packages/shared`)
+- **Monorepo Architecture**: npm Workspaces (`apps/api`, `apps/web`)
 - **Backend**: NestJS (TypeScript), Prisma ORM, PostgreSQL (`tsvector` FTS & `pgvector` / MinHash internal similarity)
 - **Frontend**: React (TypeScript), React Query, CSS Design Tokens (Luxor Gold `#9D7A26`, White `#FFFFFF`, Shark `#1F2124`, **Zero Gradients**)
 - **Authentication**: Argon2id password hashing, short-lived JWT Access Tokens, rotated server-side Refresh Tokens, `@Roles()` RBAC Guards
